@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 # Function to convert the number to Indian currency words
+# Function to convert the number to Indian currency words
 def convert_to_indian_currency_words(amount):
     units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", 
              "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", 
@@ -20,13 +21,20 @@ def convert_to_indian_currency_words(amount):
             return units[n // 100] + " Hundred" + (" " + num_to_words(n % 100, index) if n % 100 else "") + (" " + thousands[index] if index > 0 else "")
         
         # For numbers greater than or equal to 1000
-        new_index = index + 1
-        return num_to_words(n // 1000, new_index) + " " + thousands[index] + (" " + num_to_words(n % 1000, new_index) if n % 1000 else "")
+        if n >= 100000:  # Handle Lakhs
+            return num_to_words(n // 100000, 2) + " Lakh" + (" " + num_to_words(n % 100000, 2) if n % 100000 else "")
+        elif n >= 1000:  # Handle Thousands
+            return num_to_words(n // 1000, 1) + " Thousand" + (" " + num_to_words(n % 1000, 1) if n % 1000 else "")
+        
+        # For numbers greater than or equal to 10000000 (Crore)
+        if n >= 10000000:  
+            return num_to_words(n // 10000000, 3) + " Crore" + (" " + num_to_words(n % 10000000, 3) if n % 10000000 else "")
 
     words = num_to_words(amount, 0).strip()
     if words:
         return words + " Only"
     return "Zero Only"
+
 
 # Function to calculate the amount for a row
 def calculate_row(row_frame):
