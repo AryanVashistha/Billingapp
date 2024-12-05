@@ -1,39 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
-
-# Function to convert the number to Indian currency words
+from num2words import num2words
 # Function to convert the number to Indian currency words
 def convert_to_indian_currency_words(amount):
-    units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", 
-             "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", 
-             "Eighteen", "Nineteen"]
-    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
-    thousands = ["", "Thousand", "Lakh", "Crore"]  # Indian Numbering System
-
-    def num_to_words(n, index=0):
-        if n == 0:
-            return ""
-        if n < 20:
-            return units[n] + (" " + thousands[index] if index > 0 else "")
-        if n < 100:
-            return tens[n // 10] + (" " + units[n % 10] if n % 10 else "") + (" " + thousands[index] if index > 0 else "")
-        if n < 1000:
-            return units[n // 100] + " Hundred" + (" " + num_to_words(n % 100, index) if n % 100 else "") + (" " + thousands[index] if index > 0 else "")
-        
-        # For numbers greater than or equal to 1000
-        if n >= 100000:  # Handle Lakhs
-            return num_to_words(n // 100000, 2) + " Lakh" + (" " + num_to_words(n % 100000, 2) if n % 100000 else "")
-        elif n >= 1000:  # Handle Thousands
-            return num_to_words(n // 1000, 1) + " Thousand" + (" " + num_to_words(n % 1000, 1) if n % 1000 else "")
-        
-        # For numbers greater than or equal to 10000000 (Crore)
-        if n >= 10000000:  
-            return num_to_words(n // 10000000, 3) + " Crore" + (" " + num_to_words(n % 10000000, 3) if n % 10000000 else "")
-
-    words = num_to_words(amount, 0).strip()
-    if words:
-        return words + " Only"
-    return "Zero Only"
+    try:
+        words = num2words(amount, lang='en_IN')
+        return words
+    except ValueError:
+        return "Invalid Amount"
 
 
 # Function to calculate the amount for a row
