@@ -166,7 +166,9 @@ def save_to_file():
 
     with open(file_path, "w") as file:
         # Write buyer's information in a compact format
-        file.write(f"Dated : {date_entry.get()}\n")
+        file.write(f"\t\t\t\tMODERN KNITWEARS\n")
+        file.write(f"\tVill Chack Khooni, Near Industrial Estate, SICOP Kathua (J&K)\n")
+        file.write(f"\t\t\t\t\tDated : {date_entry.get()}\n")
         file.write(f"Buyer's Name  : {buyer_name_entry.get()}\n")
         file.write(f"Address  : {address_entry.get()}\n")
         file.write("-" * 60 + "\n")
