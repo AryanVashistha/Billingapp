@@ -157,6 +157,7 @@ def save_to_file():
         # Write buyer's information in a compact format
         file.write(f"Buyer's Name  : {buyer_name_entry.get()}\n")
         file.write(f"Address  : {address_entry.get()}\n")
+        file.write("-" * 60 + "\n")
         file.write(f"GSTIN/Unique ID  : {gstin_entry.get()}    State  : {state_entry.get()}    State Code  : {state_code_entry.get()}\n")
         file.write(f"Vehicle No  : {veh_no_entry.get()}    Mode of Transport  : {transport_mode_entry.get()}    Driver Name  : {driver_name_entry.get()}\n")
         file.write("-" * 60 + "\n")
