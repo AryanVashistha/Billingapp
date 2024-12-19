@@ -117,6 +117,23 @@ def reindex_rows():
     for i, row in enumerate(rows):
         row.s_no_label.config(text=str(i + 1))  # Set the S. No for each row
 
+
+# Function to reset everything (both buyer's info and items)
+def reset_all():
+    # Reset buyer's info fields
+    buyer_name_entry.delete(0, tk.END)
+    address_entry.delete(0, tk.END)
+    gstin_entry.delete(0, tk.END)
+    state_entry.delete(0, tk.END)
+    state_code_entry.delete(0, tk.END)
+    veh_no_entry.delete(0, tk.END)
+    transport_mode_entry.delete(0, tk.END)
+    driver_name_entry.delete(0, tk.END)
+    
+    # Reset item rows
+    reset()  # This resets the rows and recalculates totals
+
+
 # Function to reset all fields
 def reset():
     for row in rows:
@@ -137,9 +154,18 @@ def save_to_file():
         return
 
     with open(file_path, "w") as file:
+        # Write buyer's information in a compact format
+        file.write(f"Buyer's Name  : {buyer_name_entry.get()}\n")
+        file.write(f"Address  : {address_entry.get()}\n")
+        file.write(f"GSTIN/Unique ID  : {gstin_entry.get()}    State  : {state_entry.get()}    State Code  : {state_code_entry.get()}\n")
+        file.write(f"Vehicle No  : {veh_no_entry.get()}    Mode of Transport  : {transport_mode_entry.get()}    Driver Name  : {driver_name_entry.get()}\n")
+        file.write("-" * 60 + "\n")
+
+        # Write the table headers
         file.write(f"{'S.No':<5} {'Description of Goods':<25} {'Quantity':<10} {'Rate':<10} {'Amount':<10}\n")
         file.write("-" * 60 + "\n")
 
+        # Write the item rows
         s_no = 1  # To re-index rows in the file
         for row in rows:
             description = row.product_var.get()
@@ -152,13 +178,17 @@ def save_to_file():
                 s_no += 1
         
         file.write("\n")
+        
+        # Write totals and amounts
         file.write(total_label.cget("text") + "\n")
         file.write(cgst_label.cget("text") + "\n")
         file.write(sgst_label.cget("text") + "\n")
         file.write(igst_label.cget("text") + "\n")
         file.write(grand_total_label.cget("text") + "\n")
         file.write(invoice_amount_in_words_label.cget("text") + "\n")
+    
     print(f"Invoice saved to '{file_path}'")
+
 
 # Main GUI
 root = tk.Tk()
@@ -225,11 +255,14 @@ for _ in range(5):
 add_row_btn = tk.Button(root, text="Add Row", command=add_row)
 add_row_btn.grid(row=3, column=0, sticky='w', padx=10, pady=10)
 
+reset_all_btn = tk.Button(root, text="Reset All", command=reset_all)
+reset_all_btn.grid(row=3, column=1, sticky='w', padx=10, pady=10)
+
 reset_btn = tk.Button(root, text="Reset", command=reset)
-reset_btn.grid(row=3, column=1, sticky='w', padx=10, pady=10)
+reset_btn.grid(row=3, column=2, sticky='w', padx=10, pady=10)
 
 save_btn = tk.Button(root, text="Save Invoice", command=save_to_file)
-save_btn.grid(row=3, column=2, sticky='w', padx=10, pady=10)
+save_btn.grid(row=3, column=3, sticky='w', padx=10, pady=10)
 
 total_label = tk.Label(root, text="Total Amount (Before Tax) : 0.00", font=("Arial", 10))
 total_label.grid(row=4, column=0, sticky='w', padx=10, pady=5)
