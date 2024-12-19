@@ -166,6 +166,8 @@ def save_to_file():
 
     with open(file_path, "w") as file:
         # Write buyer's information in a compact format
+        file.write(f"\tGSTIN.  : {gstin_var.get()}   \tTAX INVOICE \t Mob  : 94192-48547\n")
+        file.write("\n")
         file.write(f"\t\t\t\tMODERN KNITWEARS\n")
         file.write(f"\tVill Chack Khooni, Near Industrial Estate, SICOP Kathua (J&K)\n")
         file.write(f"\t\t\t\t\tDated : {date_entry.get()}\n")
@@ -220,6 +222,15 @@ buyer_info_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 tk.Label(buyer_info_frame, text="Buyer's Name:", width=15).grid(row=0, column=0, padx=5, sticky='w')
 buyer_name_entry = tk.Entry(buyer_info_frame, width=50)
 buyer_name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# Add GSTIN dropdown with editable options
+tk.Label(buyer_info_frame, text="GSTIN Cmp:", width=15).grid(row=0, column=3, padx=4, sticky='w')
+gstin_var = tk.StringVar()
+gstin_dropdown = ttk.Combobox(buyer_info_frame, textvariable=gstin_var, width=20)
+gstin_dropdown['values'] = ['O1AHQPR3836G2Z7', 'O12Randomu0912', 'P923Random4230']  # Predefined options
+gstin_dropdown.grid(row=0, column=4, padx=5, pady=5)
+gstin_dropdown.set('O1AHQPR3836G2Z7')  # Set default value
+
 
 # Add date label and DateEntry at the top
 date_label = tk.Label(root, text="Date:", width=10)
