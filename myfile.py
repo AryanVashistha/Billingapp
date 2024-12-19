@@ -146,11 +146,21 @@ def reset():
 
 # Function to save filled rows to a text file with a user-specified path
 def save_to_file():
+    # Get buyer's name and date
+    buyer_name = buyer_name_entry.get().strip().replace(" ", "_")
+    invoice_date = date_entry.get_date().strftime("%d-%m-%Y")  # Format the date as dd-mm-yyyy
+
+    # Construct default file name
+    default_file_name = f"Invoice_{buyer_name}_{invoice_date}.txt"
+
+    # Ask user to specify file path with the default file name
     file_path = filedialog.asksaveasfilename(
         defaultextension=".txt",
         filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-        title="Save Invoice"
+        title="Save Invoice",
+        initialfile=default_file_name  # Set the default file name
     )
+
     if not file_path:  # If the user cancels the dialog
         return
 
@@ -191,6 +201,7 @@ def save_to_file():
         file.write(invoice_amount_in_words_label.cget("text") + "\n")
     
     print(f"Invoice saved to '{file_path}'")
+
 
 
 # Main GUI
