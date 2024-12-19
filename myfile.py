@@ -156,6 +156,7 @@ def save_to_file():
 
     with open(file_path, "w") as file:
         # Write buyer's information in a compact format
+        file.write(f"Dated : {date_entry.get()}\n")
         file.write(f"Buyer's Name  : {buyer_name_entry.get()}\n")
         file.write(f"Address  : {address_entry.get()}\n")
         file.write("-" * 60 + "\n")
