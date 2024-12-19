@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from num2words import num2words
 
 # Function to convert the number to Indian currency words
@@ -126,9 +126,17 @@ def reset():
         add_row()
     calculate_total()
 
-# Function to save filled rows to a text file
+# Function to save filled rows to a text file with a user-specified path
 def save_to_file():
-    with open("invoice.txt", "w") as file:
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".txt",
+        filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+        title="Save Invoice"
+    )
+    if not file_path:  # If the user cancels the dialog
+        return
+
+    with open(file_path, "w") as file:
         file.write(f"{'S.No':<5} {'Description of Goods':<25} {'Quantity':<10} {'Rate':<10} {'Amount':<10}\n")
         file.write("-" * 60 + "\n")
 
@@ -150,14 +158,55 @@ def save_to_file():
         file.write(igst_label.cget("text") + "\n")
         file.write(grand_total_label.cget("text") + "\n")
         file.write(invoice_amount_in_words_label.cget("text") + "\n")
-    print("Invoice saved to 'invoice.txt'")
+    print(f"Invoice saved to '{file_path}'")
 
 # Main GUI
 root = tk.Tk()
 root.title("Billing Application")
 
+# Add fields for Buyer Information above the item rows
+buyer_info_frame = tk.Frame(root)
+buyer_info_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
+
+# Buyer Name
+tk.Label(buyer_info_frame, text="Buyer's Name:", width=15).grid(row=0, column=0, padx=5, sticky='w')
+buyer_name_entry = tk.Entry(buyer_info_frame, width=50)
+buyer_name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# Address
+tk.Label(buyer_info_frame, text="Address:", width=15).grid(row=1, column=0, padx=5, sticky='w')
+address_entry = tk.Entry(buyer_info_frame, width=50)
+address_entry.grid(row=1, column=1, padx=5, pady=5)
+
+# GSTIN/Unique ID, State, StateCode
+tk.Label(buyer_info_frame, text="GSTIN/Unique ID:", width=15).grid(row=2, column=0, padx=5, sticky='w')
+gstin_entry = tk.Entry(buyer_info_frame, width=20)
+gstin_entry.grid(row=2, column=1, padx=5, pady=5)
+
+tk.Label(buyer_info_frame, text="State:", width=10).grid(row=2, column=2, padx=5, sticky='w')
+state_entry = tk.Entry(buyer_info_frame, width=20)
+state_entry.grid(row=2, column=3, padx=5, pady=5)
+
+tk.Label(buyer_info_frame, text="State Code:", width=10).grid(row=2, column=4, padx=5, sticky='w')
+state_code_entry = tk.Entry(buyer_info_frame, width=20)
+state_code_entry.grid(row=2, column=5, padx=5, pady=5)
+
+# Vehicle No, Mode of Transport, Driver Name
+tk.Label(buyer_info_frame, text="Veh No:", width=10).grid(row=3, column=0, padx=5, sticky='w')
+veh_no_entry = tk.Entry(buyer_info_frame, width=20)
+veh_no_entry.grid(row=3, column=1, padx=5, pady=5)
+
+tk.Label(buyer_info_frame, text="Mode of Transport:", width=15).grid(row=3, column=2, padx=5, sticky='w')
+transport_mode_entry = tk.Entry(buyer_info_frame, width=20)
+transport_mode_entry.grid(row=3, column=3, padx=5, pady=5)
+
+tk.Label(buyer_info_frame, text="Driver Name:", width=15).grid(row=3, column=4, padx=5, sticky='w')
+driver_name_entry = tk.Entry(buyer_info_frame, width=20)
+driver_name_entry.grid(row=3, column=5, padx=5, pady=5)
+
+# Continue with the rows for items, total calculation, etc.
 header_frame = tk.Frame(root)
-header_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
+header_frame.grid(row=1, column=0, sticky='ew', padx=10, pady=10)
 
 tk.Label(header_frame, text="S. No", width=5, anchor="center").grid(row=0, column=0, padx=5)
 tk.Label(header_frame, text="Description of Goods", width=20, anchor="center").grid(row=0, column=1, padx=5)
@@ -167,37 +216,37 @@ tk.Label(header_frame, text="Amount", width=10, anchor="center").grid(row=0, col
 tk.Label(header_frame, text="Actions", width=10, anchor="center").grid(row=0, column=5, padx=5)
 
 rows_frame = tk.Frame(root)
-rows_frame.grid(row=1, column=0, sticky='ew', padx=10)
+rows_frame.grid(row=2, column=0, sticky='ew', padx=10)
 
 rows = []
 for _ in range(5):
     add_row()
 
 add_row_btn = tk.Button(root, text="Add Row", command=add_row)
-add_row_btn.grid(row=2, column=0, sticky='w', padx=10, pady=10)
+add_row_btn.grid(row=3, column=0, sticky='w', padx=10, pady=10)
 
 reset_btn = tk.Button(root, text="Reset", command=reset)
-reset_btn.grid(row=2, column=1, sticky='w', padx=10, pady=10)
+reset_btn.grid(row=3, column=1, sticky='w', padx=10, pady=10)
 
 save_btn = tk.Button(root, text="Save Invoice", command=save_to_file)
-save_btn.grid(row=2, column=2, sticky='w', padx=10, pady=10)
+save_btn.grid(row=3, column=2, sticky='w', padx=10, pady=10)
 
 total_label = tk.Label(root, text="Total Amount (Before Tax) : 0.00", font=("Arial", 10))
-total_label.grid(row=3, column=0, sticky='w', padx=10, pady=5)
+total_label.grid(row=4, column=0, sticky='w', padx=10, pady=5)
 
 cgst_label = tk.Label(root, text="CGST @ 2.5%                 : 0.00", font=("Arial", 10))
-cgst_label.grid(row=4, column=0, sticky='w', padx=10, pady=5)
+cgst_label.grid(row=5, column=0, sticky='w', padx=10, pady=5)
 
 sgst_label = tk.Label(root, text="SGST @ 2.5%                 : 0.00", font=("Arial", 10))
-sgst_label.grid(row=5, column=0, sticky='w', padx=10, pady=5)
+sgst_label.grid(row=6, column=0, sticky='w', padx=10, pady=5)
 
 igst_label = tk.Label(root, text="IGST @ 0%                     : 0.00", font=("Arial", 10))
-igst_label.grid(row=6, column=0, sticky='w', padx=10, pady=5)
+igst_label.grid(row=7, column=0, sticky='w', padx=10, pady=5)
 
 grand_total_label = tk.Label(root, text="Grand Total  : 0.00", font=("Arial", 12, 'bold'))
-grand_total_label.grid(row=7, column=0, sticky='w', padx=10, pady=10)
+grand_total_label.grid(row=8, column=0, sticky='w', padx=10, pady=10)
 
 invoice_amount_in_words_label = tk.Label(root, text="Invoice Amount in Words: Zero Only", font=("Arial", 10))
-invoice_amount_in_words_label.grid(row=8, column=0, sticky='w', padx=10, pady=5)
+invoice_amount_in_words_label.grid(row=9, column=0, sticky='w', padx=10, pady=5)
 
 root.mainloop()
