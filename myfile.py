@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
 from num2words import num2words
+from tkcalendar import DateEntry  # Import DateEntry from tkcalendar
 
 # Function to convert the number to Indian currency words
 def convert_to_indian_currency_words(amount):
@@ -195,6 +196,8 @@ def save_to_file():
 root = tk.Tk()
 root.title("Billing Application")
 
+
+
 # Add fields for Buyer Information above the item rows
 buyer_info_frame = tk.Frame(root)
 buyer_info_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
@@ -203,6 +206,20 @@ buyer_info_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
 tk.Label(buyer_info_frame, text="Buyer's Name:", width=15).grid(row=0, column=0, padx=5, sticky='w')
 buyer_name_entry = tk.Entry(buyer_info_frame, width=50)
 buyer_name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# Add date label and DateEntry at the top
+date_label = tk.Label(root, text="Date:", width=10)
+date_label.grid(row=0, column=2, padx=10, pady=10)
+
+# Get current system date and set it as default
+from datetime import date
+default_date = date.today().strftime("%d/%m/%Y")
+
+# Create DateEntry widget for date selection
+date_entry = DateEntry(root, width=12, background="darkblue", foreground="white", borderwidth=2, date_pattern='dd/mm/yyyy')
+date_entry.set_date(default_date)  # Set the default date to system date
+date_entry.grid(row=0, column=3, padx=10, pady=10)
+
 
 # Address
 tk.Label(buyer_info_frame, text="Address:", width=15).grid(row=1, column=0, padx=5, sticky='w')
