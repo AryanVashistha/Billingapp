@@ -174,11 +174,11 @@ def save_to_file():
         file.write(f"Vehicle No  : {veh_no_entry.get()}    Mode of Transport  : {transport_mode_entry.get()}    Driver Name  : {driver_name_entry.get()}\n")
         file.write("-" * 60 + "\n")
 
-        # Write the table headers
-        file.write(f"{'S.No':<5} {'Description of Goods':<25} {'Quantity':<10} {'Rate':<10} {'Amount':<10}\n")
+        # Write the table headers with aligned columns
+        file.write(f"{'S.No':<5} {'Description of Goods':<30} {'Quantity':<10} {'Rate':<10} {'Amount':<15}\n")
         file.write("-" * 60 + "\n")
 
-        # Write the item rows
+        # Write the item rows with aligned columns
         s_no = 1  # To re-index rows in the file
         for row in rows:
             description = row.product_var.get()
@@ -187,18 +187,18 @@ def save_to_file():
             amount = row.amount_label.cget("text")
             
             if description and quantity and rate:
-                file.write(f"{s_no:<5} {description:<25} {quantity:<10} {rate:<10} {amount:<10}\n")
+                file.write(f"{s_no:<5} {description:<30} {quantity:<10} {rate:<10} {amount:<15}\n")
                 s_no += 1
         
         file.write("\n")
         
         # Write totals and amounts
-        file.write(total_label.cget("text") + "\n")
-        file.write(cgst_label.cget("text") + "\n")
-        file.write(sgst_label.cget("text") + "\n")
-        file.write(igst_label.cget("text") + "\n")
-        file.write(grand_total_label.cget("text") + "\n")
-        file.write(invoice_amount_in_words_label.cget("text") + "\n")
+        file.write(f"{total_label.cget('text')}\n")
+        file.write(f"{cgst_label.cget('text')}\n")
+        file.write(f"{sgst_label.cget('text')}\n")
+        file.write(f"{igst_label.cget('text')}\n")
+        file.write(f"{grand_total_label.cget('text')}\n")
+        file.write(f"{invoice_amount_in_words_label.cget('text')}\n")
     
     print(f"Invoice saved to '{file_path}'")
 
