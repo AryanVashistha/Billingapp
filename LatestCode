@@ -1,0 +1,331 @@
+import customtkinter as ctk
+from num2words import num2words
+from tkcalendar import DateEntry
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+import tempfile
+import os
+import platform
+import subprocess
+from datetime import date
+
+# --- Set the theme and appearance for CustomTkinter ---
+# Start in Dark mode for consistency with the DateEntry initial style
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
+
+# --- NEW: Corrected Data with Alphabetical State Codes ---
+STATE_CODES = {
+    "Andaman and Nicobar Islands": "AN",
+    "Andhra Pradesh": "AD",
+    "Arunachal Pradesh": "AR",
+    "Assam": "AS",
+    "Bihar": "BR",
+    "Chandigarh": "CH",
+    "Chhattisgarh": "CG",
+    "Dadra and Nagar Haveli and Daman and Diu": "DN",
+    "Delhi": "DL",
+    "Goa": "GA",
+    "Gujarat": "GJ",
+    "Haryana": "HR",
+    "Himachal Pradesh": "HP",
+    "Jammu and Kashmir": "JK",
+    "Jharkhand": "JH",
+    "Karnataka": "KA",
+    "Kerala": "KL",
+    "Ladakh": "LA",
+    "Lakshadweep": "LD",
+    "Madhya Pradesh": "MP",
+    "Maharashtra": "MH",
+    "Manipur": "MN",
+    "Meghalaya": "ML",
+    "Mizoram": "MZ",
+    "Nagaland": "NL",
+    "Odisha": "OD",
+    "Puducherry": "PY",
+    "Punjab": "PB",
+    "Rajasthan": "RJ",
+    "Sikkim": "SK",
+    "Tamil Nadu": "TN",
+    "Telangana": "TS",
+    "Tripura": "TR",
+    "Uttar Pradesh": "UP",
+    "Uttarakhand": "UK",
+    "West Bengal": "WB",
+    "Other Territory": "OT"
+}
+
+# Generate the dropdown list from the dictionary keys
+INDIAN_STATES_UTS = sorted(list(STATE_CODES.keys()))
+
+TRANSPORT_MODES = sorted([
+    "Road Transport", "Local Courier", "Cargo Service", "Hand Delivery",
+    "Buyer's Vehicle", "Air Cargo", "Railways", "Other"
+])
+
+
+# --- A simple class to hold all widgets for a single row ---
+class RowWidgets:
+    def __init__(self, s_no_label, product_dropdown, qty_entry, rate_entry, amount_label, delete_button):
+        self.widgets = [s_no_label, product_dropdown, qty_entry, rate_entry, amount_label, delete_button]
+        self.s_no_label = s_no_label
+        self.product_var = product_dropdown.cget("variable")
+        self.qty_entry = qty_entry
+        self.rate_entry = rate_entry
+        self.amount_label = amount_label
+
+# --- Core Logic Functions ---
+def on_state_select(selected_state):
+    """Callback function to auto-fill the state code when a state is selected."""
+    state_code_entry.delete(0, ctk.END)
+    state_code = STATE_CODES.get(selected_state, "")
+    state_code_entry.insert(0, state_code)
+
+def convert_to_indian_currency_words(amount):
+    try:
+        words = num2words(int(round(amount)), lang='en_IN').title() + " Only"
+        return words
+    except ValueError:
+        return "Invalid Amount"
+
+def calculate_row(row_widgets):
+    try:
+        qty_str = row_widgets.qty_entry.get(); rate_str = row_widgets.rate_entry.get()
+        qty = int(qty_str) if qty_str else 0; rate = float(rate_str) if rate_str else 0.0
+        row_widgets.amount_label.configure(text=f"{qty * rate:.2f}")
+    except (ValueError, TypeError):
+        row_widgets.amount_label.configure(text="0.00")
+    calculate_total()
+
+def calculate_total():
+    total_before_tax = 0
+    for row in rows:
+        try: total_before_tax += float(row.amount_label.cget("text"))
+        except ValueError: pass
+    total_label.configure(text=f"Total Amount (Before Tax) : {total_before_tax:.2f}")
+    cgst, sgst, igst = total_before_tax * 0.025, total_before_tax * 0.025, 0.00
+    cgst_label.configure(text=f"CGST @ 2.5% : {cgst:.2f}")
+    sgst_label.configure(text=f"SGST @ 2.5% : {sgst:.2f}")
+    igst_label.configure(text=f"IGST @ 0% : {igst:.2f}")
+    grand_total = total_before_tax + cgst + sgst + igst
+    grand_total_label.configure(text=f"Grand Total : {grand_total:.2f}")
+    invoice_amount_in_words_label.configure(text=f"In Words: {convert_to_indian_currency_words(grand_total)}")
+
+def delete_row(row_to_delete):
+    for widget in row_to_delete.widgets: widget.destroy()
+    rows.remove(row_to_delete)
+    reindex_rows()
+    calculate_total()
+
+def reindex_rows():
+    for i, row in enumerate(rows):
+        row.s_no_label.configure(text=str(i + 1))
+
+def reset_items():
+    for row in list(rows): delete_row(row)
+    rows.clear()
+    for _ in range(5): add_row()
+    calculate_total()
+
+def reset_all():
+    buyer_name_entry.delete(0, ctk.END); address_entry.delete(0, ctk.END)
+    gstin_entry.delete(0, ctk.END); state_dropdown.set("")
+    state_code_entry.delete(0, ctk.END); veh_no_entry.delete(0, ctk.END)
+    transport_mode_dropdown.set(""); driver_name_entry.delete(0, ctk.END)
+    date_entry.set_date(date.today()); gstin_dropdown.set('O1AHQPR3836G2Z7')
+    reset_items()
+
+def open_pdf(file_path):
+    try:
+        if platform.system() == 'Darwin': subprocess.call(('open', file_path))
+        elif platform.system() == 'Windows': os.startfile(file_path)
+        else: subprocess.call(('xdg-open', file_path))
+    except Exception as e:
+        print(f"Could not open PDF: {e}")
+
+# --- PDF Generation (Only this function is modified) ---
+def generate_pdf_invoice():
+    total_before_tax = sum(float(row.amount_label.cget("text")) for row in rows if row.amount_label.cget("text"))
+    cgst, sgst, igst = total_before_tax * 0.025, total_before_tax * 0.025, 0.00
+    grand_total = total_before_tax + cgst + sgst + igst
+    grand_total_in_words = convert_to_indian_currency_words(grand_total)
+    buyer_name = buyer_name_entry.get().strip().replace(" ", "_") or "Invoice"
+    invoice_date_str = date_entry.get_date().strftime("%d-%m-%Y")
+    pdf_path = os.path.join(tempfile.gettempdir(), f"Invoice_{buyer_name}_{invoice_date_str}.pdf")
+    doc = SimpleDocTemplate(pdf_path, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    elements, styles = [], getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=20, alignment=1, textColor=colors.HexColor("#000080"))
+    normal_style = ParagraphStyle(name='Normal_Para', parent=styles['Normal'], fontSize=10, leading=14)
+    company_info = f"""<para align=center><b>MODERN KNITWEARS</b><br/>Vill Chack Khooni, Near Industrial Estate, SICOP Kathua (J&K)<br/>GSTIN: {gstin_dropdown.get()}      Mob: 94192-48547<br/><font size=14><b>TAX INVOICE</b></font></para>"""
+    elements.append(Paragraph(company_info, title_style))
+    elements.append(Spacer(1, 15))
+
+    buyer_info_data = [
+        [Paragraph("<b>Date:</b>", normal_style), Paragraph(date_entry.get(), normal_style), ""],
+        [Paragraph("<b>Buyer's Name:</b>", normal_style), Paragraph(buyer_name_entry.get(), normal_style), ""],
+        [Paragraph("<b>Address:</b>", normal_style), Paragraph(address_entry.get(), normal_style), ""],
+        [Paragraph(f"<b>GSTIN/Unique ID:</b>", normal_style), Paragraph(gstin_entry.get(), normal_style), ""],
+        [Paragraph(f"<b>State:</b>", normal_style), Paragraph(state_dropdown.get(), normal_style), Paragraph(f"<b>State Code:</b> {state_code_entry.get()}", normal_style)],
+        [Paragraph(f"<b>Vehicle No:</b>", normal_style), Paragraph(veh_no_entry.get(), normal_style), ""],
+        [Paragraph(f"<b>Mode of Transport:</b>", normal_style), Paragraph(transport_mode_dropdown.get(), normal_style), ""],
+        [Paragraph(f"<b>Driver Name:</b>", normal_style), Paragraph(driver_name_entry.get(), normal_style), ""]
+    ]
+    buyer_table = Table(buyer_info_data, colWidths=[1.5*inch, 4.5*inch, 1.5*inch])
+    buyer_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        # --- MODIFICATION START ---
+        ('LEFTPADDING', (0, 0), (-1, -1), 5), # ADDED PADDING
+        # --- MODIFICATION END ---
+        ('SPAN', (1, 0), (2, 0)),
+        ('SPAN', (1, 1), (2, 1)),
+        ('SPAN', (1, 2), (2, 2)),
+        ('SPAN', (1, 3), (2, 3)),
+        ('SPAN', (1, 5), (2, 5)),
+        ('SPAN', (1, 6), (2, 6)),
+        ('SPAN', (1, 7), (2, 7)),
+        ('GRID', (0, 3), (-1, 7), 0.5, colors.grey)
+    ]))
+    
+    elements.append(buyer_table)
+    elements.append(Spacer(1, 20))
+    items_data = [['S.No', 'Description of Goods', 'Quantity', 'Rate', 'Amount']]
+    s_no = 1
+    for row in rows:
+        description, quantity, rate, amount = row.product_var.get(), row.qty_entry.get(), row.rate_entry.get(), row.amount_label.cget("text")
+        if description and quantity and rate and float(amount) > 0: items_data.append([str(s_no), description, quantity, rate, amount]); s_no += 1
+    items_table = Table(items_data, colWidths=[0.5*inch, 3*inch, 1*inch, 1.2*inch, 1.3*inch])
+    # --- MODIFICATION START ---
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4a4a4a")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#f0f0f0")),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5), # ADDED PADDING
+        ('RIGHTPADDING', (2, 1), (-1, -1), 10)
+    ]))
+    # --- MODIFICATION END ---
+    elements.append(items_table)
+    elements.append(Spacer(1, 20))
+    totals_data = [['Total Amount (Before Tax):', f"{total_before_tax:.2f}"], ['Add: CGST @ 2.5%:', f"{cgst:.2f}"], ['Add: SGST @ 2.5%:', f"{sgst:.2f}"], ['Add: IGST @ 0%:', f"{igst:.2f}"], [Paragraph('<b>Grand Total:</b>', normal_style), Paragraph(f"<b>{grand_total:.2f}</b>", normal_style)]]
+    totals_table = Table(totals_data, colWidths=[6*inch, 1.5*inch]); totals_table.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'RIGHT'), ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black), ('LINEBELOW', (0, -1), (-1, -1), 1, colors.black)])); elements.append(totals_table); elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"<b>Amount in Words:</b> {grand_total_in_words}", normal_style)); elements.append(Spacer(1, 40)); elements.append(Paragraph("For MODERN KNITWEARS", normal_style)); elements.append(Spacer(1, 30)); elements.append(Paragraph("Authorised Signatory", normal_style))
+    doc.build(elements); open_pdf(pdf_path)
+
+# --- UI Creation ---
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("Modern Billing Application"); self.geometry("1280x850")
+        self.grid_columnconfigure(0, weight=1); self.grid_rowconfigure(2, weight=1)
+
+        # --- NEW: Variable for the theme switch ---
+        self.theme_switch_var = ctk.StringVar(value="on") # "on" for dark, "off" for light
+
+        self.create_widgets(); reset_all()
+
+    # --- NEW: Function to toggle between Dark and Light mode ---
+    def toggle_theme(self):
+        """Toggles the application theme and updates non-CTk widgets."""
+        if self.theme_switch_var.get() == "on":
+            ctk.set_appearance_mode("Dark")
+            # Update DateEntry widget for Dark Mode
+            date_entry.config(
+                background="#2a2d2e", foreground="white",
+                selectbackground='#1f6aa5', headersbackground="#2a2d2e",
+                headersforeground='white'
+            )
+        else:
+            ctk.set_appearance_mode("Light")
+            # Update DateEntry widget for Light Mode
+            date_entry.config(
+                background="white", foreground="black",
+                selectbackground='#3b8ed0', headersbackground="white",
+                headersforeground='black'
+            )
+
+    def create_widgets(self):
+        buyer_frame = ctk.CTkFrame(self, border_width=2); buyer_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew"); buyer_frame.grid_columnconfigure((1, 3, 5), weight=1); self.create_buyer_info_widgets(buyer_frame)
+        items_master_frame = ctk.CTkFrame(self); items_master_frame.grid(row=1, column=0, rowspan=2, padx=10, pady=(0, 10), sticky="nsew"); items_master_frame.grid_columnconfigure(0, weight=1); items_master_frame.grid_rowconfigure(1, weight=1); self.create_items_widgets(items_master_frame)
+        button_frame = ctk.CTkFrame(self, fg_color="transparent"); button_frame.grid(row=3, column=0, padx=10, pady=5, sticky='ew'); self.create_action_buttons(button_frame)
+        totals_frame = ctk.CTkFrame(self, border_width=2); totals_frame.grid(row=4, column=0, padx=10, pady=10, sticky='ew'); totals_frame.grid_columnconfigure(0, weight=1); self.create_totals_labels(totals_frame)
+
+    def create_buyer_info_widgets(self, parent):
+        global buyer_name_entry, gstin_dropdown, date_entry, address_entry, gstin_entry, state_dropdown, state_code_entry, veh_no_entry, transport_mode_dropdown, driver_name_entry
+        ctk.CTkLabel(parent, text="Buyer's Name:").grid(row=0, column=0, padx=10, pady=5, sticky='w'); buyer_name_entry = ctk.CTkEntry(parent, width=300); buyer_name_entry.grid(row=0, column=1, padx=10, pady=5, sticky='ew')
+        ctk.CTkLabel(parent, text="Company GSTIN:").grid(row=0, column=2, padx=10, pady=5, sticky='w'); gstin_dropdown = ctk.CTkComboBox(parent, values=['O1AHQPR3836G2Z7', 'O12Randomu0912', 'P923Random4230']); gstin_dropdown.grid(row=0, column=3, padx=10, pady=5, sticky='ew')
+        ctk.CTkLabel(parent, text="Invoice Date:").grid(row=0, column=4, padx=10, pady=5, sticky='w'); date_entry = DateEntry(parent, width=12, date_pattern='dd/MM/yyyy', background="#2a2d2e", foreground="white", borderwidth=2, selectbackground='#1f6aa5'); date_entry.grid(row=0, column=5, padx=10, pady=5, sticky='w')
+        ctk.CTkLabel(parent, text="Address:").grid(row=1, column=0, padx=10, pady=5, sticky='w'); address_entry = ctk.CTkEntry(parent); address_entry.grid(row=1, column=1, columnspan=5, padx=10, pady=5, sticky='ew')
+        ctk.CTkLabel(parent, text="Buyer GSTIN:").grid(row=2, column=0, padx=10, pady=5, sticky='w'); gstin_entry = ctk.CTkEntry(parent); gstin_entry.grid(row=2, column=1, padx=10, pady=5, sticky='ew')
+
+        ctk.CTkLabel(parent, text="State:").grid(row=2, column=2, padx=10, pady=5, sticky='w')
+        state_dropdown = ctk.CTkComboBox(parent, values=INDIAN_STATES_UTS, command=on_state_select)
+        state_dropdown.grid(row=2, column=3, padx=10, pady=5, sticky='ew'); state_dropdown.set("")
+
+        ctk.CTkLabel(parent, text="State Code:").grid(row=2, column=4, padx=10, pady=5, sticky='w'); state_code_entry = ctk.CTkEntry(parent, placeholder_text="Auto"); state_code_entry.grid(row=2, column=5, padx=10, pady=5, sticky='ew')
+
+        ctk.CTkLabel(parent, text="Vehicle No:").grid(row=3, column=0, padx=10, pady=5, sticky='w'); veh_no_entry = ctk.CTkEntry(parent); veh_no_entry.grid(row=3, column=1, padx=10, pady=5, sticky='ew')
+        ctk.CTkLabel(parent, text="Mode of Transport:").grid(row=3, column=2, padx=10, pady=5, sticky='w'); transport_mode_dropdown = ctk.CTkComboBox(parent, values=TRANSPORT_MODES); transport_mode_dropdown.grid(row=3, column=3, padx=10, pady=5, sticky='ew'); transport_mode_dropdown.set("")
+        ctk.CTkLabel(parent, text="Driver Name:").grid(row=3, column=4, padx=10, pady=5, sticky='w'); driver_name_entry = ctk.CTkEntry(parent); driver_name_entry.grid(row=3, column=5, padx=10, pady=5, sticky='ew')
+
+    def create_items_widgets(self, parent):
+        global rows_frame
+        header_frame = ctk.CTkFrame(parent, fg_color=("gray85", "gray20")); header_frame.grid(row=0, column=0, sticky='ew', pady=(0, 2))
+        headers, weights = ["S. No", "Description of Goods", "Quantity", "Rate", "Amount", "Action"], [1, 6, 2, 2, 3, 2]
+        for i, (text, weight) in enumerate(zip(headers, weights)): header_frame.grid_columnconfigure(i, weight=weight); ctk.CTkLabel(header_frame, text=text, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5, sticky='ew')
+        rows_frame = ctk.CTkScrollableFrame(parent, label_text="Invoice Items"); rows_frame.grid(row=1, column=0, sticky='nsew')
+        for i, weight in enumerate(weights): rows_frame.grid_columnconfigure(i, weight=weight)
+
+    def create_action_buttons(self, parent):
+        ctk.CTkButton(parent, text="Add Row", command=add_row).pack(side="left", padx=5)
+        ctk.CTkButton(parent, text="Reset Items", command=reset_items).pack(side="left", padx=5)
+        ctk.CTkButton(parent, text="Reset All", command=reset_all, fg_color="#D35400", hover_color="#E67E22").pack(side="left", padx=5)
+        ctk.CTkButton(parent, text="Generate PDF Invoice", command=generate_pdf_invoice, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=20)
+
+        # --- NEW: Theme toggle switch ---
+        theme_switch = ctk.CTkSwitch(
+            parent,
+            text="Dark Mode",
+            command=self.toggle_theme,
+            variable=self.theme_switch_var,
+            onvalue="on",
+            offvalue="off"
+        )
+        theme_switch.pack(side="right", padx=10, pady=5)
+
+    def create_totals_labels(self, parent):
+        global total_label, cgst_label, sgst_label, igst_label, grand_total_label, invoice_amount_in_words_label
+        font_normal, font_bold, font_words = ctk.CTkFont(size=14), ctk.CTkFont(size=18, weight="bold"), ctk.CTkFont(size=14, slant="italic")
+        total_label = ctk.CTkLabel(parent, text="Total Amount (Before Tax) : 0.00", font=font_normal, anchor="e"); total_label.grid(row=0, column=0, sticky='ew', padx=20, pady=2)
+        cgst_label = ctk.CTkLabel(parent, text="CGST @ 2.5% : 0.00", font=font_normal, anchor="e"); cgst_label.grid(row=1, column=0, sticky='ew', padx=20, pady=2)
+        sgst_label = ctk.CTkLabel(parent, text="SGST @ 2.5% : 0.00", font=font_normal, anchor="e"); sgst_label.grid(row=2, column=0, sticky='ew', padx=20, pady=2)
+        igst_label = ctk.CTkLabel(parent, text="IGST @ 0% : 0.00", font=font_normal, anchor="e"); igst_label.grid(row=3, column=0, sticky='ew', padx=20, pady=2)
+        ctk.CTkFrame(parent, height=2, fg_color=("gray70", "gray35")).grid(row=4, column=0, sticky='ew', padx=20, pady=5)
+        grand_total_label = ctk.CTkLabel(parent, text="Grand Total : 0.00", font=font_bold, anchor="e"); grand_total_label.grid(row=5, column=0, sticky='ew', padx=20, pady=2)
+        invoice_amount_in_words_label = ctk.CTkLabel(parent, text="In Words: Zero Only", font=font_words, anchor="e"); invoice_amount_in_words_label.grid(row=6, column=0, sticky='ew', padx=20, pady=(2, 5))
+
+def add_row():
+    row_index = len(rows)
+    s_no_label = ctk.CTkLabel(rows_frame, text=str(row_index + 1)); s_no_label.grid(row=row_index, column=0, padx=5, sticky='ew')
+    product_var = ctk.StringVar(); product_dropdown = ctk.CTkComboBox(rows_frame, variable=product_var, values=['T-shirt', 'Tracksuit', 'Sweater']); product_dropdown.grid(row=row_index, column=1, padx=5, pady=2, sticky='ew')
+    qty_entry = ctk.CTkEntry(rows_frame, justify='right'); qty_entry.grid(row=row_index, column=2, padx=5, pady=2, sticky='ew')
+    rate_entry = ctk.CTkEntry(rows_frame, justify='right'); rate_entry.grid(row=row_index, column=3, padx=5, pady=2, sticky='ew')
+    amount_label = ctk.CTkLabel(rows_frame, text="0.00", anchor="e"); amount_label.grid(row=row_index, column=4, padx=10, pady=2, sticky='ew')
+    row_container = RowWidgets(s_no_label, product_dropdown, qty_entry, rate_entry, amount_label, None)
+    delete_button = ctk.CTkButton(rows_frame, text="Delete", command=lambda rw=row_container: delete_row(rw), width=60, fg_color="#E74C3C", hover_color="#C0392B"); delete_button.grid(row=row_index, column=5, padx=5, pady=2)
+    row_container.widgets[-1] = delete_button
+    qty_entry.bind("<KeyRelease>", lambda event, rw=row_container: calculate_row(rw)); rate_entry.bind("<KeyRelease>", lambda event, rw=row_container: calculate_row(rw))
+    rows.append(row_container)
+
+if __name__ == "__main__":
+    rows = []
+    app = App()
+    app.mainloop()
